@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
     const { e_name, start_time, end_time, region_id }: ElectionInput =
       await req.json();
 
-    // Validate input
     if (!e_name || !start_time || !end_time || !region_id) {
       return NextResponse.json(
         { error: "Missing required fields" },
