@@ -18,6 +18,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { states } from '@/lib/states'
 import Link from 'next/link'
+import { GlowingEffect } from '@/components/ui/glowing-effect'
 
 export default function Signup () {
   const router = useRouter()
@@ -75,8 +76,17 @@ export default function Signup () {
 
   return (
     <>
-      <div className='flex justify-center items-center mt-20 bg-neutral-100 h-screen'>
-        <Card className='w-md h-auto bg-white text-gray-800 border-neutral-700 border fade-in shadow-2xl backdrop-blur-sm animate-in slide-in-from-bottom-4 duration-700 antialiased'>
+      <DotBackgroundDemo>
+        <Card className='w-md h-auto bg-white text-gray-800 border-neutral-700 border fade-in shadow-2xl animate-in slide-out-to-start-20 duration-1000 antialiased'>
+          <GlowingEffect
+            blur={0}
+            borderWidth={5}
+            spread={80}
+            glow={true}
+            disabled={false}
+            proximity={84}
+            inactiveZone={0.01}
+          />
           <CardHeader>
             <CardTitle>Create an Account</CardTitle>
           </CardHeader>
@@ -95,27 +105,8 @@ export default function Signup () {
                 id='email'
                 placeholder='Enter your email'
                 onChange={handleChange}
-                type='email'
               />
             </div>
-            {/* <div className='grid grid-cols-2 gap-5'>
-              <div>
-                <Label htmlFor='firstName'>First Name</Label>
-                <Input
-                  id='firstName'
-                  placeholder='First Name'
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <Label htmlFor='lastName'>Last Name</Label>
-                <Input
-                  id='lastName'
-                  placeholder='Last Name'
-                  onChange={handleChange}
-                />
-              </div>
-            </div> */}
             <div className='w-full'>
               <label className='block mb-1'>State</label>
               <select
@@ -123,7 +114,9 @@ export default function Signup () {
                 onChange={e => setSelected(e.target.value)}
                 className='w-full px-3 py-2 border rounded-md border-neutral-700 focus:ring-emerald-600 bg-transparent text-neutral-700 text-sm shadow-xs transition-[color,box-shadow] outline-none'
               >
-                <option value='' className=''>Select State</option>
+                <option value='' className=''>
+                  Select State
+                </option>
                 {states.map((state, i) => (
                   <option key={i} value={state}>
                     {state}
@@ -142,12 +135,12 @@ export default function Signup () {
               <Button
                 onClick={() => setShowPassword(!showPassword)}
                 title={showPassword ? 'Hide password' : 'Show password'}
-                className='absolute right-1 w-auto top-7 text-white cursor-pointer hover:text-neutral-300 transition-all duration-200 h-auto'
+                className='absolute right-1 w-auto top-6 bg-transparent text-white cursor-pointer hover:text-neutral-300 transition-all duration-200 h-auto hover:bg-transparent'
               >
                 {showPassword ? (
-                  <EyeOff size={16} strokeWidth={2} />
+                  <EyeOff size={16} strokeWidth={2} className='stroke-black' />
                 ) : (
-                  <Eye size={16} strokeWidth={2} />
+                  <Eye size={16} strokeWidth={2} className='stroke-black' />
                 )}
               </Button>
             </div>
@@ -169,7 +162,7 @@ export default function Signup () {
             </div>
           </CardFooter>
         </Card>
-      </div>
+      </DotBackgroundDemo>
     </>
   )
 }
