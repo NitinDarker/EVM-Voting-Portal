@@ -1,21 +1,14 @@
+'use client'
+
 import type React from 'react'
 import Link from 'next/link'
-import {
-  Vote,
-  Shield,
-  Users,
-  ChevronRight,
-  CheckCircle2,
-  Lock,
-  LayoutDashboard
-} from 'lucide-react'
+import { Vote, ChevronRight, Lock, LayoutDashboard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BackgroundLines } from '@/components/ui/background-lines'
 
 export default function Home () {
   return (
     <main className='min-h-screen bg-white'>
-      {/* Navigation */}
       <nav className='fixed top-0 left-0 right-0 z-50 bg-gray-50/80 backdrop-blur-sm border-b border-gray-100'>
         <div className='max-w-6xl mx-auto px-6 py-4 flex items-center justify-between'>
           <div className='flex items-center gap-2 cursor-pointer'>
@@ -40,10 +33,9 @@ export default function Home () {
         </div>
       </nav>
 
-      {/* Hero Section */}
       <BackgroundLines>
         <section className='pt-32 pb-20 px-6 relative selection:bg-emerald-300'>
-          <div className='max-w-4xl mx-auto text-center absolute z-10 inset-0 top-30'>
+          <div className='max-w-4xl mx-auto text-center absolute z-10 inset-0 top-30 fade-in animate-in slide-out-to-start duration-500'>
             <h1 className='mt-8 text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6 text-balance'>
               Online Voting Portal
               <br />
@@ -63,63 +55,21 @@ export default function Home () {
                 variant='dash'
                 className='px-8 py-7 z-50'
               >
-                <Link href='/signup'>
-                  Sign Up
-                  {/* <ChevronRight className='w-4 h-4 ml-1' /> */}
-                </Link>
+                <Link href='/signup'>Sign Up</Link>
               </Button>
-              <button className='p-[3px] relative hover:cursor-pointer font-rubik z-50'>
+              <Link
+                href='/login'
+                className='p-[3px] relative hover:cursor-pointer font-rubik z-50'
+              >
                 <div className='absolute inset-0 bg-linear-to-r from-lime-400 to-yellow-400 rounded-lg' />
                 <div className='px-6 py-3 bg-white rounded-[6px] relative group transition-all duration-600 text-black hover:bg-transparent hover:text-black hover:scale-105 antialiased'>
                   Login to Vote
                 </div>
-              </button>
+              </Link>
             </div>
           </div>
         </section>
       </BackgroundLines>
-      {/* Features Section
-      <section className='py-20 px-6 bg-gray-50'>
-        <div className='max-w-6xl mx-auto'>
-          <div className='text-center mb-16'>
-            <h2 className='text-3xl font-bold text-gray-900 mb-4'>
-              Why Choose VoteSecure?
-            </h2>
-            <p className='text-gray-600 max-w-xl mx-auto'>
-              Built with cutting-edge technology to ensure every vote counts
-            </p>
-          </div>
-          <div className='grid md:grid-cols-3 gap-8'>
-            <FeatureCard
-              icon={<Shield className='w-6 h-6' />}
-              title='End-to-End Encryption'
-              description='Your vote is protected with military-grade encryption from start to finish.'
-            />
-            <FeatureCard
-              icon={<Users className='w-6 h-6' />}
-              title='Verified Identity'
-              description='Multi-factor authentication ensures only eligible voters can participate.'
-            />
-            <FeatureCard
-              icon={<CheckCircle2 className='w-6 h-6' />}
-              title='Instant Results'
-              description='Real-time vote counting with complete transparency and audit trails.'
-            />
-          </div>
-        </div>
-      </section> */}
-
-      {/* Stats Section */}
-      {/* <section className='py-20 px-6 bg-white'>
-        <div className='max-w-4xl mx-auto'>
-          <div className='grid grid-cols-2 md:grid-cols-4 gap-8 text-center'>
-            <StatItem value='2M+' label='Votes Cast' />
-            <StatItem value='500+' label='Organizations' />
-            <StatItem value='99.9%' label='Uptime' />
-            <StatItem value='100%' label='Secure' />
-          </div>
-        </div>
-      </section> */}
 
       <section className='py-20 px-6 bg-gray-50/80'>
         <div className='max-w-5xl mx-auto'>
@@ -204,14 +154,12 @@ export default function Home () {
                   </div>
                 </div>
               </div>
-              {/* Decorative elements */}
               <div className='absolute -z-10 -top-4 -right-4 w-full h-full bg-gray-200 rounded-2xl' />
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className='py-10 px-6 bg-gray-900 max-h-60'>
         <div className='max-w-3xl mx-auto text-center'>
           <h2 className='text-3xl font-bold text-white mb-4'>Ready to Vote?</h2>
@@ -242,52 +190,6 @@ export default function Home () {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      {/* <footer className='py-8 px-6 bg-white border-t border-gray-100'>
-        <div className='max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4'>
-          <div className='flex items-center gap-2'>
-            <div className='w-6 h-6 bg-gray-900 rounded flex items-center justify-center'>
-              <Vote className='w-3 h-3 text-white' />
-            </div>
-            <span className='text-sm text-gray-600'>VoteSecure</span>
-          </div>
-          <p className='text-sm text-gray-400'>
-            © 2025 VoteSecure. All rights reserved.
-          </p>
-        </div>
-      </footer> */}
     </main>
-  )
-}
-
-function FeatureCard ({
-  icon,
-  title,
-  description
-}: {
-  icon: React.ReactNode
-  title: string
-  description: string
-}) {
-  return (
-    <div className='bg-white rounded-2xl p-8 border border-gray-100 hover:border-gray-200 hover:shadow-lg transition-all duration-300'>
-      <div className='w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-gray-700 mb-5'>
-        {icon}
-      </div>
-      <h3 className='text-lg font-semibold text-gray-900 mb-2'>{title}</h3>
-      <p className='text-gray-600 text-sm leading-relaxed'>{description}</p>
-    </div>
-  )
-}
-
-function StatItem ({ value, label }: { value: string; label: string }) {
-  return (
-    <div>
-      <div className='text-3xl md:text-4xl font-bold text-gray-900 mb-1'>
-        {value}
-      </div>
-      <div className='text-sm text-gray-500'>{label}</div>
-    </div>
   )
 }
