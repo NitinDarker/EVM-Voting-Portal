@@ -3,9 +3,9 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import redis from "@/lib/redis";
-import { resend } from "@/lib/resend";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import { sendOTP } from "@/lib/nodemailer";
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,12 +43,7 @@ export async function POST(req: NextRequest) {
       600
     );
 
-    await resend.emails.send({
-      from: "EVM Portal <onboarding@resend.dev>",
-      to: email,
-      subject: "Your OTP for Registration",
-      text: `Your OTP is ${otp}`,
-    });
+    await sendOTP(email, otp);
 
     return NextResponse.json({ success: true, message: "OTP sent." });
   } catch (err: any) {

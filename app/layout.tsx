@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
+import { Toaster } from 'react-hot-toast'
 
 const _inter = Inter({ subsets: ['latin'] })
 
@@ -39,6 +40,16 @@ export default function RootLayout ({
     <html lang='en'>
       <body className={`font-sans antialiased`}>
         {children}
+        <Toaster 
+          position="top-center" 
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: '#333',
+              color: '#fff',
+            },
+          }}
+        />
         <Analytics />
       </body>
     </html>

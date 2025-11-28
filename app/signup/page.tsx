@@ -25,48 +25,40 @@ export default function Signup () {
   const [showPassword, setShowPassword] = useState(false)
   const [selected, setSelected] = useState('')
   const [cred, setCred] = useState({
-    username: '',
-    phone: Number(),
-    firstName: '',
-    lastName: '',
+    name: '',
+    email: '',
     password: ''
   })
 
-  async function signupHandler () {
-    const payload = {
-      ...cred,
-      phone: Number(cred.phone)
-    }
+  async function sendOtpHandler () {
+    const region_id = states.indexOf(selected) + 1
 
-    if (!payload.username.trim()) return toast.error('Please enter a username.')
-    if (payload.username.trim().length < 3)
-      return toast.error('Username must be at least 3 characters long.')
-    if (!payload.phone) return toast.error('Please enter a valid phone number.')
-    if (!/^\d{10}$/.test(payload.phone.toString()))
-      return toast.error('Phone number must be exactly 10 digits.')
-
-    if (!payload.firstName.trim())
-      return toast.error('Please enter your first name.')
-    if (!payload.lastName.trim())
-      return toast.error('Please enter your last name.')
-
-    if (!payload.password.trim()) return toast.error('Please set a password.')
-    if (payload.password.length < 8)
+    if (!cred.name.trim()) return toast.error('Please enter your full name.')
+    if (!cred.email.trim() || !cred.email.includes('@'))
+      return toast.error('Please enter a valid email address.')
+    if (region_id <= 0) return toast.error('Please select your state/region.')
+    if (!cred.password.trim() || cred.password.length < 8)
       return toast.error('Password must be at least 8 characters long.')
 
+    const payload = {
+      name: cred.name,
+      email: cred.email,
+      password: cred.password,
+      region_id: region_id
+    }
+
     const response = await toast.promise(
-      axios.post('http://localhost:3000/api/auth/register', payload),
+      axios.post('/api/auth/register/send-otp', payload),
       {
-        loading: 'Creating your account...',
-        success: `Account created successfully!`,
-        error: err =>
-          err?.response?.data?.error || 'Signup failed. Please try again.'
+        loading: 'Sending OTP...',
+        success: `OTP sent successfully to ${cred.email}!`,
+        error: err => err?.response?.data?.error || 'Failed to send OTP'
       }
     )
 
     if (response.data.success) {
-      localStorage.setItem('token', response.data.token)
-      setTimeout(() => router.push('/dashboard'), 500)
+      sessionStorage.setItem('temp_reg_email', cred.email)
+      setTimeout(() => router.push('/signup/verify-otp'), 500)
     }
   }
 
@@ -97,6 +89,7 @@ export default function Signup () {
                 id='name'
                 placeholder='Enter your Full Name'
                 onChange={handleChange}
+                value={cred.name}
               />
             </div>
             <div>
@@ -105,6 +98,7 @@ export default function Signup () {
                 id='email'
                 placeholder='Enter your email'
                 onChange={handleChange}
+                value={cred.email}
               />
             </div>
             <div className='w-full'>
@@ -131,6 +125,7 @@ export default function Signup () {
                 id='password'
                 placeholder='Enter your Password'
                 onChange={handleChange}
+                value={cred.password}
               />
               <Button
                 onClick={() => setShowPassword(!showPassword)}
@@ -147,16 +142,16 @@ export default function Signup () {
           </CardContent>
           <CardFooter className='flex flex-col gap-3 items-center justify-center'>
             <Button
-              type='submit'
-              variant='primary'
+              onClick={sendOtpHandler}
               size='full'
-              onClick={signupHandler}
+              variant='dash'
+              className='px-8 py-2 z-50 hover:shadow-2xl'
             >
               Sign Up
             </Button>
             <div>
               <span>Already have an account? </span>
-              <Link href='/signin' className='text-neutral-500 underline'>
+              <Link href='/login' className='text-neutral-500 underline'>
                 Login
               </Link>
             </div>
