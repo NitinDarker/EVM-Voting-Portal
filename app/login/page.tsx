@@ -115,7 +115,7 @@ export default function Signup () {
             </Button>
             <div>
               <span>Doesn't have an account? </span>
-              <Link href='/login' className='text-neutral-500 underline'>
+              <Link href='/signup' className='text-neutral-500 underline'>
                 Signup
               </Link>
             </div>

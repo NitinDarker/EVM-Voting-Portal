@@ -85,23 +85,19 @@ export function VoteModal ({
 
   return (
     <div className='fixed inset-0 z-50 flex items-center justify-center'>
-      {/* Backdrop */}
       <div
-        className='absolute inset-0 bg-black/50 backdrop-blur-sm'
+        className='absolute inset-0 bg-black/30 backdrop-blur-xs'
         onClick={handleClose}
       />
-
-      {/* Modal */}
-      <div className='relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden'>
-        {/* Header */}
-        <div className='bg-teal-600 px-6 py-5 text-white'>
+      <div className='relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden'>
+        <div className='bg-emerald-600 px-6 py-5 text-white'>
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-3'>
-              <div className='w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center'>
+              <div className='w-10 h-10 mr-2 bg-black/50 rounded-xl flex items-center justify-center'>
                 <Vote className='w-5 h-5' />
               </div>
               <div>
-                <h2 className='font-semibold text-lg'>Cast Your Vote</h2>
+                <h2 className='font-semibold text-xl'>Cast Your Vote</h2>
                 <p className='text-teal-100 text-sm'>
                   {election.election_name}
                 </p>
@@ -109,9 +105,9 @@ export function VoteModal ({
             </div>
             <button
               onClick={handleClose}
-              className='w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors'
+              className='w-8 h-8 rounded-lg bg-red-500 hover:bg-red-600 border-red-300 cursor-pointer hover:scale-105 flex items-center justify-center transition-all duration-500'
             >
-              <X className='w-4 h-4' />
+              <X className='w-4 h-4 hover:scale-105' />
             </button>
           </div>
         </div>
@@ -132,9 +128,11 @@ export function VoteModal ({
             </div>
           ) : (
             <>
-              <p className='text-gray-600 mb-6'>
-                Select your preferred candidate below. Your vote is anonymous
-                and secure.
+              <p className='text-gray-600 text-sm'>
+                Select your preferred candidate below.
+              </p>
+              <p className='text-gray-600 mb-6 text-sm'>
+                Your vote is anonymous and secure.
               </p>
 
               {error && (
@@ -150,16 +148,16 @@ export function VoteModal ({
                   <button
                     key={candidate.candidate_id}
                     onClick={() => setSelectedCandidate(candidate.candidate_id)}
-                    className={`w-full p-4 rounded-xl border-2 transition-all text-left flex items-center gap-4 ${
+                    className={`w-full p-4 rounded-xl border-2 transition-all text-left flex items-center gap-4 hover:cursor-pointer ${
                       selectedCandidate === candidate.candidate_id
-                        ? 'border-teal-500 bg-teal-50'
+                        ? 'border-emerald-500 bg-emerald-50'
                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                   >
                     <div
                       className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
                         selectedCandidate === candidate.candidate_id
-                          ? 'bg-teal-600 text-white'
+                          ? 'bg-emerald-600 text-white'
                           : 'bg-gray-100 text-gray-500'
                       }`}
                     >
@@ -176,7 +174,7 @@ export function VoteModal ({
                     <div
                       className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${
                         selectedCandidate === candidate.candidate_id
-                          ? 'border-teal-600 bg-teal-600'
+                          ? 'border-emerald-600 bg-emerald-600'
                           : 'border-gray-300'
                       }`}
                     >
@@ -189,8 +187,8 @@ export function VoteModal ({
               </div>
 
               {/* Warning */}
-              <div className='mt-6 p-3 bg-amber-50 border border-amber-100 rounded-lg'>
-                <p className='text-xs text-amber-700'>
+              <div className='mt-4 p-3 bg-amber-50 border border-amber-100 rounded-lg'>
+                <p className='text-xs text-amber-800'>
                   <strong>Important:</strong> Once submitted, your vote cannot
                   be changed. Please review your selection carefully before
                   confirming.
@@ -202,7 +200,7 @@ export function VoteModal ({
 
         {/* Footer */}
         {!voteSuccess && (
-          <div className='border-t border-gray-100 px-6 py-4 bg-gray-50 flex items-center justify-end gap-3'>
+          <div className='border-t border-gray-100 px-6 py-3 bg-gray-50/60 flex items-center justify-end gap-3'>
             <Button
               variant='outline'
               onClick={handleClose}
@@ -214,7 +212,7 @@ export function VoteModal ({
             <Button
               onClick={handleVote}
               disabled={!selectedCandidate || isSubmitting}
-              className='bg-teal-600 hover:bg-teal-700 text-white'
+              variant='dash'
             >
               {isSubmitting ? (
                 <>

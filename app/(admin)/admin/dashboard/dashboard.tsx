@@ -32,6 +32,7 @@ import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import AddCandidateModal from '@/components/AddCandidateModal'
 import CreateElectionModal from '@/components/CreateElectionModal'
+import { BackgroundBeams } from '@/components/ui/background-beams'
 
 // --- Types ---
 interface Admin {
@@ -95,9 +96,6 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
       const activeData = await activeRes.json()
       const pastData = await pastRes.json()
 
-      // DEBUG: Look at this line, this is why your code failed before
-      // console.log('Active Data:', activeData)
-
       const mapToElection = (data: any, type: 'active' | 'past'): Election => {
         let status: 'draft' | 'active' | 'completed' = 'active'
         const now = new Date()
@@ -133,23 +131,32 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
         }
       }
 
-      // FIX IS HERE: Check if activeData ITSELF is the array
       const activeList = Array.isArray(activeData)
         ? activeData.map((e: any) => mapToElection(e, 'active'))
         : Array.isArray(activeData.elections)
         ? activeData.elections.map((e: any) => mapToElection(e, 'active'))
         : []
 
-      // Do the same for pastData
       const pastList = Array.isArray(pastData)
         ? pastData.map((e: any) => mapToElection(e, 'past'))
         : Array.isArray(pastData.elections)
         ? pastData.elections.map((e: any) => mapToElection(e, 'past'))
         : []
 
-      const allElections = [...activeList, ...pastList].sort(
-        (a, b) => b.id - a.id
+      // --- DUPLICATE FIX ---
+      const rawList = [...activeList, ...pastList]
+      
+      // We use a Map to ensure uniqueness by ID. 
+      // This solves the "Encountered two children with same key" error.
+      const uniqueElectionsMap = new Map()
+      rawList.forEach(item => {
+        uniqueElectionsMap.set(item.id, item)
+      })
+
+      const allElections = Array.from(uniqueElectionsMap.values()).sort(
+        (a: any, b: any) => b.id - a.id
       )
+      // ---------------------
 
       setElections(allElections)
     } catch (error) {
@@ -186,7 +193,6 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
   // --- Handlers ---
   const handleStopElection = async (electionId: number) => {
     try {
-      // 1. Call the API to kill the election
       const res = await fetch('/api/election/stop', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -200,7 +206,6 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
 
       toast.success('Election stopped. Results announced!')
 
-      // 2. Update local state so you don't have to refresh
       setElections(
         elections.map(e =>
           e.id === electionId
@@ -208,9 +213,6 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
             : e
         )
       )
-
-      // Optional: Refetch to be 100% sure of data consistency
-      // fetchElections()
     } catch (err: any) {
       console.error(err)
       toast.error(err.message)
@@ -218,7 +220,6 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
   }
 
   const handleStartElection = async (electionId: number) => {
-    // Placeholder for API call
     toast.success('Simulation: Election started')
     setElections(
       elections.map(e => (e.id === electionId ? { ...e, status: 'active' } : e))
@@ -226,7 +227,6 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
   }
 
   const handleDeleteElection = async (electionId: number) => {
-    // Placeholder for API call
     toast.success('Simulation: Election deleted')
     setElections(elections.filter(e => e.id !== electionId))
   }
@@ -278,7 +278,6 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
     )
   }
 
-  // Stats Calculation
   const stats = {
     totalElections: elections.length,
     activeElections: elections.filter(e => e.status === 'active').length,
@@ -287,9 +286,14 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
   }
 
   return (
-    <div className='min-h-screen bg-gray-50 animate-in slide-out-to-start-20 duration-1000 fade-in antialiased'>
-      {/* Header */}
-      <header className='bg-white border-b border-gray-200 sticky top-0 z-50'>
+    // PARENT CONTAINER: Relative to contain absolute children, min-h-screen for full height
+    <div className='min-h-screen relative bg-neutral-200 animate-in fade-in duration-500 antialiased'>
+      
+      {/* BEAMS: Absolute, z-0 to sit behind content but above background color */}
+      <BackgroundBeams className='absolute inset-0 z-0 h-full w-full' />
+
+      {/* HEADER: Sticky, z-50 to stay on top of everything */}
+      <header className='sticky top-0 z-50 bg-neutral-100/80 border-b border-gray-200 backdrop-blur-md shadow-xl'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
           <div className='flex items-center justify-between h-16'>
             <div className='flex items-center gap-3'>
@@ -313,9 +317,10 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
         </div>
       </header>
 
-      <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+      {/* MAIN CONTENT: Relative, z-10 to ensure it sits ON TOP of the beams */}
+      <main className='relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
         {/* Welcome Section */}
-        <div className='bg-white rounded-2xl border border-gray-200 p-6 mb-8 shadow-xl'>
+        <div className='bg-neutral-50 rounded-2xl border border-gray-200 p-6 mb-8 shadow-xl'>
           <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
             <div>
               <h2 className='text-2xl font-bold text-gray-900 mb-1'>
@@ -327,8 +332,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
             </div>
             <Button
               onClick={() => setShowCreateModal(true)}
-              variant='default'
-              className='bg-teal-600 hover:bg-teal-700'
+              variant='dash'
             >
               <Plus className='w-4 h-4 mr-2' />
               Create Election
@@ -340,7 +344,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8'>
           <button
             onClick={() => setShowCreateModal(true)}
-            className='shadow-xl cursor-pointer flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-emerald-400 hover:bg-emerald-50/50 transition-all text-left hover:-translate-y-1 duration-500'
+            className='shadow-xl cursor-pointer flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all text-left hover:-translate-y-1 duration-500'
           >
             <div className='w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center'>
               <Plus className='w-5 h-5 text-emerald-600' />
@@ -353,7 +357,6 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
           <button
             onClick={() => {
               if (elections.length > 0) {
-                // Default to first active or just first
                 const target =
                   elections.find(e => e.status === 'draft') || elections[0]
                 setSelectedElection(target)
@@ -362,7 +365,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
                 toast.error('Create an election first!')
               }
             }}
-            className='shadow-xl cursor-pointer flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50/50 transition-all text-left hover:-translate-y-1 duration-500'
+            className='shadow-xl cursor-pointer flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-all text-left hover:-translate-y-1 duration-500'
           >
             <div className='w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center'>
               <Users className='w-5 h-5 text-amber-600' />
@@ -384,7 +387,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
                 toast.error('No active or draft elections to edit')
               }
             }}
-            className='flex shadow-xl cursor-pointer items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all text-left hover:-translate-y-1 duration-500'
+            className='flex shadow-xl cursor-pointer items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all text-left hover:-translate-y-1 duration-500'
           >
             <div className='w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center'>
               <Edit3 className='w-5 h-5 text-blue-600' />
@@ -400,7 +403,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
               if (activeElection) handleStopElection(activeElection.id)
               else toast.error('No active election running')
             }}
-            className='flex shadow-xl cursor-pointer items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 transition-all text-left hover:-translate-y-1 duration-500'
+            className='flex shadow-xl cursor-pointer items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-rose-300 hover:bg-rose-50 transition-all text-left hover:-translate-y-1 duration-500'
           >
             <div className='w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center'>
               <StopCircle className='w-5 h-5 text-rose-600' />
@@ -414,7 +417,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
 
         {/* Statistics Cards */}
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8'>
-          <Card className='border-gray-200'>
+          <Card className='border-gray-200 shadow-xl hover:scale-95 duration-1000 transition-all'>
             <CardContent className='p-6'>
               <div className='flex items-center justify-between'>
                 <div>
@@ -431,7 +434,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
               </div>
             </CardContent>
           </Card>
-          <Card className='border-gray-200'>
+          <Card className='border-gray-200 shadow-xl hover:scale-95 duration-1000 transition-all'>
             <CardContent className='p-6'>
               <div className='flex items-center justify-between'>
                 <div>
@@ -448,7 +451,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
               </div>
             </CardContent>
           </Card>
-          <Card className='border-gray-200'>
+          <Card className='border-gray-200 shadow-xl hover:scale-95 duration-1000 transition-all'>
             <CardContent className='p-6'>
               <div className='flex items-center justify-between'>
                 <div>
@@ -465,7 +468,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
               </div>
             </CardContent>
           </Card>
-          <Card className='border-gray-200'>
+          <Card className='border-gray-200 shadow-xl hover:scale-95 duration-1000 transition-all'>
             <CardContent className='p-6'>
               <div className='flex items-center justify-between'>
                 <div>
@@ -485,8 +488,8 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
         </div>
 
         {/* Your Elections List */}
-        <Card className='border-gray-200'>
-          <CardHeader className='border-b border-gray-100'>
+        <Card className='border-gray-200 mb-8 shadow-xl'>
+          <CardHeader className='border-b border-gray-100 h-15'>
             <div className='flex items-center justify-between'>
               <div>
                 <CardTitle className='text-lg'>Your Elections</CardTitle>
@@ -496,7 +499,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
               </div>
               <Badge
                 variant='secondary'
-                className='bg-teal-50 text-teal-700 border-0'
+                className='bg-emerald-50 text-emerald-700 border-emerald-200 cursor-pointer hover:scale-105 transition-all duration-500 self-start md:self-center'
               >
                 {elections.length} Total
               </Badge>
@@ -609,7 +612,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
                               setSelectedElection(election)
                               setShowCandidateModal(true)
                             }}
-                            className='border-gray-200 text-gray-600 hover:text-teal-700 hover:border-teal-300'
+                            className='border-gray-200 text-gray-600 hover:text-amber-700 hover:border-amber-300 hover:bg-amber-50/60'
                           >
                             <Users className='w-4 h-4 mr-1' />
                             Add Candidate
@@ -641,7 +644,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
                               size='sm'
                               variant='outline'
                               onClick={() => handleStopElection(election.id)}
-                              className='border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300'
+                              className='border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50/80'
                             >
                               <StopCircle className='w-4 h-4 mr-1' />
                               Stop & Announce
@@ -760,7 +763,7 @@ export default function AdminDashboard ({ admin }: { admin: Admin }) {
       )}
 
       {/* Footer */}
-      <footer className='border-t border-gray-200 bg-white mt-12'>
+      <footer className='border-t border-gray-200 bg-white mt-12 relative z-10'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'>
           <div className='flex flex-col sm:flex-row items-center justify-between gap-4'>
             <div className='flex items-center gap-2'>
