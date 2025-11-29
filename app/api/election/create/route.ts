@@ -60,8 +60,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Insert into DB
-    await db.query(
+    // Insert into DB and capture the result
+    // Using 'any' for the result tuple to safely access insertId without strict typing headaches
+    const [result]: any = await db.query(
       `
       INSERT INTO election (e_name, start_time, end_time, region_id, admin_id)
       VALUES (?, ?, ?, ?, ?)
@@ -69,8 +70,13 @@ export async function POST(req: NextRequest) {
       [e_name, start, end, region_id, admin.admin_id]
     );
 
+    // Return success with the new election_id
     return NextResponse.json(
-      { success: true, message: "Election created successfully" },
+      {
+        success: true,
+        message: "Election created successfully",
+        election_id: result.insertId,
+      },
       { status: 201 }
     );
   } catch (err) {

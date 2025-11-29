@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Vote,
@@ -16,7 +16,8 @@ import {
   CheckCircle2,
   ChevronRight,
   X,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,7 +31,9 @@ import { Badge } from '@/components/ui/badge'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import AddCandidateModal from '@/components/AddCandidateModal'
+import CreateElectionModal from '@/components/CreateElectionModal'
 
+// --- Types ---
 interface Admin {
   admin_id: number
   a_name: string
@@ -55,153 +58,192 @@ interface Candidate {
   votes: number
 }
 
-const initialElections: Election[] = [
-  {
-    id: 1,
-    name: 'General Election 2025',
-    description: 'National parliamentary election',
-    startDate: '2025-01-15',
-    endDate: '2025-01-20',
-    status: 'active',
-    candidates: [
-      { id: 1, name: 'Amit Shah', party: 'National Party', votes: 523 },
-      { id: 2, name: 'Priya Sharma', party: 'Democratic Front', votes: 412 },
-      { id: 3, name: 'Vikram Singh', party: 'Progressive Party', votes: 312 }
-    ],
-    totalVotes: 1247
-  },
-  {
-    id: 2,
-    name: 'State Assembly Election',
-    description: 'State legislative assembly election',
-    startDate: '2025-02-01',
-    endDate: '2025-02-05',
-    status: 'draft',
-    candidates: [
-      { id: 4, name: 'Rajesh Kumar', party: "People's Alliance", votes: 0 },
-      { id: 5, name: 'Sunita Devi', party: 'Unity Party', votes: 0 }
-    ],
-    totalVotes: 0
-  },
-  {
-    id: 3,
-    name: 'Municipal Corporation Election 2024',
-    description: 'Local body election',
-    startDate: '2024-11-01',
-    endDate: '2024-11-05',
-    status: 'completed',
-    candidates: [
-      { id: 6, name: 'Mohan Lal', party: 'City First', votes: 18234 },
-      { id: 7, name: 'Kavita Reddy', party: 'Urban Alliance', votes: 15678 },
-      { id: 8, name: 'Rajan Menon', party: 'Metro Party', votes: 11766 }
-    ],
-    totalVotes: 45678
-  }
-]
+// --- Component ---
+export default function AdminDashboard ({ admin }: { admin: Admin }) {
+  // State
+  const [elections, setElections] = useState<Election[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-export default function AdminDashboard ({ admin }: any) {
-  const [elections, setElections] = useState<Election[]>(initialElections)
+  // Modals
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showCandidateModal, setShowCandidateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+
+  // Selection
   const [selectedElection, setSelectedElection] = useState<Election | null>(
     null
   )
-  const [newElection, setNewElection] = useState({
-    name: '',
-    description: '',
-    startDate: '',
-    endDate: ''
-  })
+
+  // Add Candidate Modal State
   const [newCandidate, setNewCandidate] = useState({ name: '', party: '' })
   const [partyList, setPartyList] = useState<any[]>([])
-  const [selectedParty, setSelectedParty] = useState<string>('') // existing party id
+  const [selectedParty, setSelectedParty] = useState<string>('')
   const [addNewParty, setAddNewParty] = useState(false)
-  const [newParty, setNewParty] = useState<any>({
-    name: '',
-    symbol: ''
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [newParty, setNewParty] = useState<any>({ name: '', symbol: '' })
+
   const router = useRouter()
 
+  // --- Fetch Logic ---
+  const fetchElections = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const [activeRes, pastRes] = await Promise.all([
+        fetch('/api/election/active'),
+        fetch('/api/election/past')
+      ])
+
+      const activeData = await activeRes.json()
+      const pastData = await pastRes.json()
+
+      // DEBUG: Look at this line, this is why your code failed before
+      // console.log('Active Data:', activeData)
+
+      const mapToElection = (data: any, type: 'active' | 'past'): Election => {
+        let status: 'draft' | 'active' | 'completed' = 'active'
+        const now = new Date()
+        const start = new Date(data.start_time)
+        const end = new Date(data.end_time)
+
+        if (type === 'past') {
+          status = 'completed'
+        } else if (start > now) {
+          status = 'draft'
+        } else if (end < now) {
+          status = 'completed'
+        } else {
+          status = 'active'
+        }
+
+        return {
+          id: data.election_id,
+          name: data.e_name,
+          description: data.description || 'No description provided',
+          startDate: data.start_time,
+          endDate: data.end_time,
+          status: status,
+          totalVotes: data.total_votes || 0,
+          candidates: Array.isArray(data.candidates)
+            ? data.candidates.map((c: any) => ({
+                id: c.candidate_id,
+                name: c.c_name,
+                party: c.party_name || 'Independent',
+                votes: c.vote_count || 0
+              }))
+            : []
+        }
+      }
+
+      // FIX IS HERE: Check if activeData ITSELF is the array
+      const activeList = Array.isArray(activeData)
+        ? activeData.map((e: any) => mapToElection(e, 'active'))
+        : Array.isArray(activeData.elections)
+        ? activeData.elections.map((e: any) => mapToElection(e, 'active'))
+        : []
+
+      // Do the same for pastData
+      const pastList = Array.isArray(pastData)
+        ? pastData.map((e: any) => mapToElection(e, 'past'))
+        : Array.isArray(pastData.elections)
+        ? pastData.elections.map((e: any) => mapToElection(e, 'past'))
+        : []
+
+      const allElections = [...activeList, ...pastList].sort(
+        (a, b) => b.id - a.id
+      )
+
+      setElections(allElections)
+    } catch (error) {
+      console.error('Error fetching elections:', error)
+      toast.error('Could not load elections')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Initial Fetch
+  useEffect(() => {
+    fetchElections()
+  }, [fetchElections])
+
+  // Fetch Parties for Modal
   useEffect(() => {
     if (!showCandidateModal) return
 
     async function loadParties () {
-      const res = await fetch('/api/party/list')
-      const data = await res.json()
-
-      if (!Array.isArray(data.parties)) {
-        console.error('API returned non-array:', data)
-        return
+      try {
+        const res = await fetch('/api/party/list')
+        const data = await res.json()
+        if (Array.isArray(data.parties)) {
+          setPartyList(data.parties)
+        }
+      } catch (e) {
+        console.error(e)
       }
-      console.log(data.parties)
-
-      setPartyList(data.parties)
     }
-
     loadParties()
   }, [showCandidateModal])
 
-  const stats = {
-    totalElections: elections.length,
-    activeElections: elections.filter(e => e.status === 'active').length,
-    completedElections: elections.filter(e => e.status === 'completed').length,
-    totalVotes: elections.reduce((sum, e) => sum + e.totalVotes, 0)
-  }
+  // --- Handlers ---
+  const handleStopElection = async (electionId: number) => {
+    try {
+      // 1. Call the API to kill the election
+      const res = await fetch('/api/election/stop', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ election_id: electionId })
+      })
 
-  const handleCreateElection = () => {
-    if (!newElection.name || !newElection.startDate || !newElection.endDate)
-      return
-    const election: Election = {
-      id: Date.now(),
-      ...newElection,
-      status: 'draft',
-      candidates: [],
-      totalVotes: 0
-    }
-    setElections([election, ...elections])
-    setNewElection({ name: '', description: '', startDate: '', endDate: '' })
-    setShowCreateModal(false)
-  }
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to stop election')
+      }
 
-  const handleAddCandidate = () => {
-    if (!selectedElection || !newCandidate.name || !newCandidate.party) return
-    const candidate: Candidate = {
-      id: Date.now(),
-      ...newCandidate,
-      votes: 0
-    }
-    setElections(
-      elections.map(e =>
-        e.id === selectedElection.id
-          ? { ...e, candidates: [...e.candidates, candidate] }
-          : e
+      toast.success('Election stopped. Results announced!')
+
+      // 2. Update local state so you don't have to refresh
+      setElections(
+        elections.map(e =>
+          e.id === electionId
+            ? { ...e, status: 'completed', endDate: new Date().toISOString() }
+            : e
+        )
       )
-    )
-    setNewCandidate({ name: '', party: '' })
-    setShowCandidateModal(false)
+
+      // Optional: Refetch to be 100% sure of data consistency
+      // fetchElections()
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message)
+    }
   }
 
-  const handleStopElection = (electionId: number) => {
-    setElections(
-      elections.map(e =>
-        e.id === electionId ? { ...e, status: 'completed' } : e
-      )
-    )
-  }
-
-  const handleStartElection = (electionId: number) => {
+  const handleStartElection = async (electionId: number) => {
+    // Placeholder for API call
+    toast.success('Simulation: Election started')
     setElections(
       elections.map(e => (e.id === electionId ? { ...e, status: 'active' } : e))
     )
   }
 
-  const handleDeleteElection = (electionId: number) => {
+  const handleDeleteElection = async (electionId: number) => {
+    // Placeholder for API call
+    toast.success('Simulation: Election deleted')
     setElections(elections.filter(e => e.id !== electionId))
   }
 
+  const logoutHandler = async () => {
+    try {
+      const res = await fetch('/api/auth/admin/logout')
+      if (res.ok) {
+        toast.success('Logged out successfully')
+        router.push('/admin/login')
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // --- Helpers ---
   const getStatusBadge = (status: Election['status']) => {
     switch (status) {
       case 'active':
@@ -236,25 +278,17 @@ export default function AdminDashboard ({ admin }: any) {
     )
   }
 
-  async function logoutHandler () {
-    try {
-      const res = await fetch('/api/auth/admin/logout', {
-        method: 'get',
-        credentials: 'include'
-      })
-      if (!res.ok) {
-        toast.error('Logout failed')
-        throw new Error('Logout failed')
-      }
-      toast.success('Logout successfull.')
-      router.push('/admin/login')
-    } catch (err) {
-      console.error(err)
-    }
+  // Stats Calculation
+  const stats = {
+    totalElections: elections.length,
+    activeElections: elections.filter(e => e.status === 'active').length,
+    completedElections: elections.filter(e => e.status === 'completed').length,
+    totalVotes: elections.reduce((sum, e) => sum + e.totalVotes, 0)
   }
 
   return (
     <div className='min-h-screen bg-gray-50 animate-in slide-out-to-start-20 duration-1000 fade-in antialiased'>
+      {/* Header */}
       <header className='bg-white border-b border-gray-200 sticky top-0 z-50'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
           <div className='flex items-center justify-between h-16'>
@@ -271,17 +305,16 @@ export default function AdminDashboard ({ admin }: any) {
               size='sm'
               onClick={logoutHandler}
               className='border-gray-200 text-gray-600 hover:text-gray-900 bg-transparent'
-              asChild
             >
-              <Link href='/'>
-                <LogOut className='w-4 h-4 mr-2' />
-                Logout
-              </Link>
+              <LogOut className='w-4 h-4 mr-2' />
+              Logout
             </Button>
           </div>
         </div>
       </header>
+
       <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+        {/* Welcome Section */}
         <div className='bg-white rounded-2xl border border-gray-200 p-6 mb-8 shadow-xl'>
           <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
             <div>
@@ -292,7 +325,11 @@ export default function AdminDashboard ({ admin }: any) {
                 Manage elections, candidates, and view results
               </p>
             </div>
-            <Button onClick={() => setShowCreateModal(true)} variant='dash'>
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              variant='default'
+              className='bg-teal-600 hover:bg-teal-700'
+            >
               <Plus className='w-4 h-4 mr-2' />
               Create Election
             </Button>
@@ -316,8 +353,13 @@ export default function AdminDashboard ({ admin }: any) {
           <button
             onClick={() => {
               if (elections.length > 0) {
-                setSelectedElection(elections[0])
+                // Default to first active or just first
+                const target =
+                  elections.find(e => e.status === 'draft') || elections[0]
+                setSelectedElection(target)
                 setShowCandidateModal(true)
+              } else {
+                toast.error('Create an election first!')
               }
             }}
             className='shadow-xl cursor-pointer flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50/50 transition-all text-left hover:-translate-y-1 duration-500'
@@ -332,10 +374,14 @@ export default function AdminDashboard ({ admin }: any) {
           </button>
           <button
             onClick={() => {
-              const activeElection = elections.find(e => e.status === 'active')
+              const activeElection =
+                elections.find(e => e.status === 'active') ||
+                elections.find(e => e.status === 'draft')
               if (activeElection) {
                 setSelectedElection(activeElection)
                 setShowEditModal(true)
+              } else {
+                toast.error('No active or draft elections to edit')
               }
             }}
             className='flex shadow-xl cursor-pointer items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all text-left hover:-translate-y-1 duration-500'
@@ -352,6 +398,7 @@ export default function AdminDashboard ({ admin }: any) {
             onClick={() => {
               const activeElection = elections.find(e => e.status === 'active')
               if (activeElection) handleStopElection(activeElection.id)
+              else toast.error('No active election running')
             }}
             className='flex shadow-xl cursor-pointer items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 transition-all text-left hover:-translate-y-1 duration-500'
           >
@@ -367,7 +414,7 @@ export default function AdminDashboard ({ admin }: any) {
 
         {/* Statistics Cards */}
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8'>
-          <Card className='border-gray-200 '>
+          <Card className='border-gray-200'>
             <CardContent className='p-6'>
               <div className='flex items-center justify-between'>
                 <div>
@@ -437,7 +484,7 @@ export default function AdminDashboard ({ admin }: any) {
           </Card>
         </div>
 
-        {/* Your Elections */}
+        {/* Your Elections List */}
         <Card className='border-gray-200'>
           <CardHeader className='border-b border-gray-100'>
             <div className='flex items-center justify-between'>
@@ -456,249 +503,182 @@ export default function AdminDashboard ({ admin }: any) {
             </div>
           </CardHeader>
           <CardContent className='p-0'>
-            <div className='divide-y divide-gray-100'>
-              {elections.map(election => {
-                const winner = getWinner(election)
-                return (
-                  <div
-                    key={election.id}
-                    className='p-6 hover:bg-gray-50 transition-colors'
-                  >
-                    <div className='flex flex-col lg:flex-row lg:items-start justify-between gap-4'>
-                      <div className='flex-1'>
-                        <div className='flex items-center gap-2 mb-2'>
-                          <h3 className='font-semibold text-gray-900'>
-                            {election.name}
-                          </h3>
-                          {getStatusBadge(election.status)}
-                        </div>
-                        <p className='text-sm text-gray-500 mb-3'>
-                          {election.description}
-                        </p>
-                        <div className='flex flex-wrap items-center gap-4 text-xs text-gray-500 mb-4'>
-                          <div className='flex items-center gap-1'>
-                            <Calendar className='w-3.5 h-3.5' />
-                            <span>
-                              {new Date(
-                                election.startDate
-                              ).toLocaleDateString()}{' '}
-                              -{' '}
-                              {new Date(election.endDate).toLocaleDateString()}
-                            </span>
+            {isLoading ? (
+              <div className='flex flex-col items-center justify-center py-12 text-gray-400'>
+                <Loader2 className='w-8 h-8 animate-spin mb-2' />
+                <p>Loading election data...</p>
+              </div>
+            ) : elections.length === 0 ? (
+              <div className='flex flex-col items-center justify-center py-12 text-gray-400'>
+                <p>No elections found. Create one to get started.</p>
+              </div>
+            ) : (
+              <div className='divide-y divide-gray-100'>
+                {elections.map(election => {
+                  const winner = getWinner(election)
+                  return (
+                    <div
+                      key={election.id}
+                      className='p-6 hover:bg-gray-50 transition-colors'
+                    >
+                      <div className='flex flex-col lg:flex-row lg:items-start justify-between gap-4'>
+                        <div className='flex-1'>
+                          <div className='flex items-center gap-2 mb-2'>
+                            <h3 className='font-semibold text-gray-900'>
+                              {election.name}
+                            </h3>
+                            {getStatusBadge(election.status)}
                           </div>
-                          <div className='flex items-center gap-1'>
-                            <Users className='w-3.5 h-3.5' />
-                            <span>{election.candidates.length} Candidates</span>
-                          </div>
-                          <div className='flex items-center gap-1'>
-                            <Vote className='w-3.5 h-3.5' />
-                            <span>
-                              {election.totalVotes.toLocaleString()} Votes
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Candidates List */}
-                        {election.candidates.length > 0 && (
-                          <div className='flex flex-wrap gap-2'>
-                            {election.candidates.map(candidate => (
-                              <span
-                                key={candidate.id}
-                                className='inline-flex items-center px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-700'
-                              >
-                                {candidate.name}
-                                {election.status === 'completed' && (
-                                  <span className='ml-1 text-gray-400'>
-                                    ({candidate.votes})
-                                  </span>
-                                )}
+                          <p className='text-sm text-gray-500 mb-3'>
+                            {election.description}
+                          </p>
+                          <div className='flex flex-wrap items-center gap-4 text-xs text-gray-500 mb-4'>
+                            <div className='flex items-center gap-1'>
+                              <Calendar className='w-3.5 h-3.5' />
+                              <span>
+                                {new Date(
+                                  election.startDate
+                                ).toLocaleDateString()}{' '}
+                                -{' '}
+                                {new Date(
+                                  election.endDate
+                                ).toLocaleDateString()}
                               </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Winner Display for completed elections */}
-                        {winner && (
-                          <div className='mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3 inline-flex items-center gap-3'>
-                            <div className='w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center'>
-                              <Trophy className='w-4 h-4 text-amber-600' />
                             </div>
-                            <div>
-                              <p className='text-xs text-amber-600 font-medium'>
-                                Winner
-                              </p>
-                              <p className='font-semibold text-gray-900 text-sm'>
-                                {winner.name}{' '}
-                                <span className='font-normal text-gray-500'>
-                                  • {winner.party} •{' '}
-                                  {winner.votes.toLocaleString()} votes
+                            <div className='flex items-center gap-1'>
+                              <Users className='w-3.5 h-3.5' />
+                              <span>
+                                {election.candidates.length} Candidates
+                              </span>
+                            </div>
+                            <div className='flex items-center gap-1'>
+                              <Vote className='w-3.5 h-3.5' />
+                              <span>
+                                {election.totalVotes.toLocaleString()} Votes
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Candidates List */}
+                          {election.candidates.length > 0 && (
+                            <div className='flex flex-wrap gap-2'>
+                              {election.candidates.map(candidate => (
+                                <span
+                                  key={candidate.id}
+                                  className='inline-flex items-center px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-700'
+                                >
+                                  {candidate.name}
+                                  {election.status === 'completed' && (
+                                    <span className='ml-1 text-gray-400'>
+                                      ({candidate.votes})
+                                    </span>
+                                  )}
                                 </span>
-                              </p>
+                              ))}
                             </div>
-                          </div>
-                        )}
-                      </div>
+                          )}
 
-                      {/* Action Buttons */}
-                      <div className='flex flex-wrap gap-2 lg:flex-col lg:items-end'>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          onClick={() => {
-                            setSelectedElection(election)
-                            setShowCandidateModal(true)
-                          }}
-                          className='border-gray-200 text-gray-600 hover:text-teal-700 hover:border-teal-300'
-                        >
-                          <Users className='w-4 h-4 mr-1' />
-                          Add Candidate
-                        </Button>
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          onClick={() => {
-                            setSelectedElection(election)
-                            setShowEditModal(true)
-                          }}
-                          className='border-gray-200 text-gray-600 hover:text-blue-700 hover:border-blue-300'
-                        >
-                          <Edit3 className='w-4 h-4 mr-1' />
-                          Edit
-                        </Button>
-                        {election.status === 'draft' && (
+                          {/* Winner Display */}
+                          {winner && (
+                            <div className='mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3 inline-flex items-center gap-3'>
+                              <div className='w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center'>
+                                <Trophy className='w-4 h-4 text-amber-600' />
+                              </div>
+                              <div>
+                                <p className='text-xs text-amber-600 font-medium'>
+                                  Winner
+                                </p>
+                                <p className='font-semibold text-gray-900 text-sm'>
+                                  {winner.name}{' '}
+                                  <span className='font-normal text-gray-500'>
+                                    • {winner.party} •{' '}
+                                    {winner.votes.toLocaleString()} votes
+                                  </span>
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className='flex flex-wrap gap-2 lg:flex-col lg:items-end'>
                           <Button
-                            size='sm'
-                            onClick={() => handleStartElection(election.id)}
-                            className='bg-teal-600 hover:bg-teal-700 text-white'
-                          >
-                            Start Election
-                            <ChevronRight className='w-4 h-4 ml-1' />
-                          </Button>
-                        )}
-                        {election.status === 'active' && (
-                          <Button
-                            size='sm'
                             variant='outline'
-                            onClick={() => handleStopElection(election.id)}
-                            className='border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300'
-                          >
-                            <StopCircle className='w-4 h-4 mr-1' />
-                            Stop & Announce
-                          </Button>
-                        )}
-                        {election.status === 'completed' && (
-                          <Button
                             size='sm'
-                            variant='outline'
-                            onClick={() => handleDeleteElection(election.id)}
-                            className='border-gray-200 text-gray-500 hover:text-red-600 hover:border-red-300'
+                            onClick={() => {
+                              setSelectedElection(election)
+                              setShowCandidateModal(true)
+                            }}
+                            className='border-gray-200 text-gray-600 hover:text-teal-700 hover:border-teal-300'
                           >
-                            <Trash2 className='w-4 h-4 mr-1' />
-                            Delete
+                            <Users className='w-4 h-4 mr-1' />
+                            Add Candidate
                           </Button>
-                        )}
+                          <Button
+                            variant='outline'
+                            size='sm'
+                            onClick={() => {
+                              setSelectedElection(election)
+                              setShowEditModal(true)
+                            }}
+                            className='border-gray-200 text-gray-600 hover:text-blue-700 hover:border-blue-300'
+                          >
+                            <Edit3 className='w-4 h-4 mr-1' />
+                            Edit
+                          </Button>
+                          {election.status === 'draft' && (
+                            <Button
+                              size='sm'
+                              onClick={() => handleStartElection(election.id)}
+                              className='bg-teal-600 hover:bg-teal-700 text-white'
+                            >
+                              Start Election
+                              <ChevronRight className='w-4 h-4 ml-1' />
+                            </Button>
+                          )}
+                          {election.status === 'active' && (
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              onClick={() => handleStopElection(election.id)}
+                              className='border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300'
+                            >
+                              <StopCircle className='w-4 h-4 mr-1' />
+                              Stop & Announce
+                            </Button>
+                          )}
+                          {election.status === 'completed' && (
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              onClick={() => handleDeleteElection(election.id)}
+                              className='border-gray-200 text-gray-500 hover:text-red-600 hover:border-red-300'
+                            >
+                              <Trash2 className='w-4 h-4 mr-1' />
+                              Delete
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
 
       {/* Create Election Modal */}
       {showCreateModal && (
-        <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
-          <div className='bg-white rounded-2xl w-full max-w-md p-6'>
-            <div className='flex items-center justify-between mb-6'>
-              <h3 className='text-lg font-semibold text-gray-900'>
-                Create New Election
-              </h3>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className='text-gray-400 hover:text-gray-600'
-              >
-                <X className='w-5 h-5' />
-              </button>
-            </div>
-            <div className='space-y-4'>
-              <div>
-                <label className='block text-sm font-medium text-teal-700 mb-1.5'>
-                  Election Name
-                </label>
-                <input
-                  type='text'
-                  value={newElection.name}
-                  onChange={e =>
-                    setNewElection({ ...newElection, name: e.target.value })
-                  }
-                  className='w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none'
-                  placeholder='Enter election name'
-                />
-              </div>
-              <div>
-                <label className='block text-sm font-medium text-teal-700 mb-1.5'>
-                  Description
-                </label>
-                <textarea
-                  value={newElection.description}
-                  onChange={e =>
-                    setNewElection({
-                      ...newElection,
-                      description: e.target.value
-                    })
-                  }
-                  className='w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none resize-none'
-                  rows={3}
-                  placeholder='Enter description'
-                />
-              </div>
-              <div className='grid grid-cols-2 gap-4'>
-                <div>
-                  <label className='block text-sm font-medium text-teal-700 mb-1.5'>
-                    Start Date
-                  </label>
-                  <input
-                    type='date'
-                    value={newElection.startDate}
-                    onChange={e =>
-                      setNewElection({
-                        ...newElection,
-                        startDate: e.target.value
-                      })
-                    }
-                    className='w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium text-teal-700 mb-1.5'>
-                    End Date
-                  </label>
-                  <input
-                    type='date'
-                    value={newElection.endDate}
-                    onChange={e =>
-                      setNewElection({
-                        ...newElection,
-                        endDate: e.target.value
-                      })
-                    }
-                    className='w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none'
-                  />
-                </div>
-              </div>
-              <Button
-                onClick={handleCreateElection}
-                className='w-full bg-teal-600 hover:bg-teal-700 text-white h-12 rounded-full mt-2'
-              >
-                Create Election
-              </Button>
-            </div>
-          </div>
-        </div>
+        <CreateElectionModal
+          showCreateModal={showCreateModal}
+          setShowCreateModal={setShowCreateModal}
+          refetchElections={fetchElections}
+        />
       )}
 
+      {/* Add Candidate Modal */}
       <AddCandidateModal
         showCandidateModal={showCandidateModal}
         setShowCandidateModal={setShowCandidateModal}
