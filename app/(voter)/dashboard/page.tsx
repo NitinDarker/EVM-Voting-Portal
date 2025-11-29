@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import axios from 'axios'
 import {
   Vote,
   LogOut,
@@ -15,7 +16,7 @@ import {
   AlertCircle,
   BarChart3,
   Shield,
-  Loader
+  Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,8 +27,10 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import axios from 'axios'
+import { VoteModal } from '@/components/VoteModal'
+import { ResultModal } from '@/components/ResultsModal' // Make sure you created this file!
 
+// --- Types ---
 interface Voter {
   voter_id: number
   name: string
@@ -55,9 +58,8 @@ interface Election {
 interface Candidate {
   candidate_id: number
   candidate_name: string
-  election_id: number
   party_name: string
-  party_symbol: string
+  party_symbol?: string
 }
 
 interface UserStats {
@@ -68,20 +70,30 @@ interface UserStats {
 
 interface DashboardData {
   voter: Voter | null
-  votingStatus: any[]
   activeElections: Election[]
   pastElections: Election[]
   userStats: UserStats
-  candidates: Candidate[]
 }
 
-export default function DashboardPage () {
+export default function DashboardPage() {
+  // --- Dashboard Data State ---
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // --- Vote Modal State ---
+  const [isVoteModalOpen, setIsVoteModalOpen] = useState(false)
+  const [selectedElection, setSelectedElection] = useState<Election | null>(null)
+  const [modalCandidates, setModalCandidates] = useState<Candidate[]>([])
+  const [processingElectionId, setProcessingElectionId] = useState<number | null>(null)
+
+  // --- Result Modal State ---
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false)
+  const [resultElectionId, setResultElectionId] = useState<number | null>(null)
+
+  // --- Fetch Data on Mount ---
   useEffect(() => {
-    async function loadAll () {
+    async function loadAll() {
       try {
         setLoading(true)
 
@@ -92,6 +104,37 @@ export default function DashboardPage () {
           axios.get(`/api/election/past`)
         ])
 
+        const rawActive = Array.isArray(activeE.data) ? activeE.data : (activeE.data.elections || [])
+        const rawPast = Array.isArray(pastE.data) ? pastE.data : (pastE.data.elections || [])
+
+        const processElection = (e: any): Election => {
+          const now = new Date()
+          const start = new Date(e.start_date || e.start_time)
+          const end = new Date(e.end_date || e.end_time)
+
+          let derivedStatus = 'active'
+          if (end < now) derivedStatus = 'completed'
+          else if (start > now) derivedStatus = 'upcoming'
+
+          return {
+            election_id: e.election_id,
+            election_name: e.election_name || e.e_name,
+            description: e.description || 'No description',
+            start_date: e.start_date || e.start_time,
+            end_date: e.end_date || e.end_time,
+            status: derivedStatus,
+            candidate_count: e.candidate_count || (e.candidates?.length) || 0,
+            total_votes: e.total_votes || 0,
+            winner: e.winner
+          }
+        }
+
+        const allElections = [...rawActive, ...rawPast].map(processElection)
+        const uniqueElections = Array.from(new Map(allElections.map(item => [item.election_id, item])).values())
+
+        const realActive = uniqueElections.filter(e => e.status === 'active')
+        const realPast = uniqueElections.filter(e => e.status === 'completed')
+
         setData({
           voter: {
             voter_id: vInfo.data.voter_id,
@@ -99,19 +142,17 @@ export default function DashboardPage () {
             email: vInfo.data.v_email,
             region_name: vInfo.data.r_name
           },
-          activeElections: activeE.data ?? [],
-          pastElections: pastE.data ?? [],
+          activeElections: realActive,
+          pastElections: realPast,
           userStats: {
             elections_participated: vStats.data.participated,
-            active_elections: vStats.data.active,
-            total_elections: vStats.data.total
-          },
-          votingStatus: [],
-          candidates: []
+            active_elections: realActive.length,
+            total_elections: uniqueElections.length
+          }
         })
       } catch (e) {
         console.error(e)
-        setError('Dashboard failed to load')
+        setError('Failed to load dashboard data.')
       } finally {
         setLoading(false)
       }
@@ -119,119 +160,59 @@ export default function DashboardPage () {
     loadAll()
   }, [])
 
-  useEffect(() => {
-    if (data) console.log('Updated data:', data)
-  }, [data])
+  // --- Handlers ---
 
-  // Demo data fallback when database is not connected
-  const demoData: DashboardData = {
-    voter: {
-      voter_id: 1,
-      name: 'John Doe',
-      email: 'john@example.com',
-      region_name: 'Maharashtra'
-    },
-    votingStatus: [],
-    activeElections: [
-      {
-        election_id: 1,
-        election_name: 'General Election 2025',
-        description: 'National parliamentary election',
-        start_date: '2025-01-15',
-        end_date: '2025-01-20',
-        status: 'active',
-        candidate_count: 5,
-        total_votes: 1247
-      },
-      {
-        election_id: 2,
-        election_name: 'State Assembly Election',
-        description: 'State legislative assembly election',
-        start_date: '2025-02-01',
-        end_date: '2025-02-05',
-        status: 'active',
-        candidate_count: 8,
-        total_votes: 892
+  const handleVoteClick = async (election: Election) => {
+    try {
+      setProcessingElectionId(election.election_id)
+      const res = await axios.get(`/api/participant/list?election_id=${election.election_id}`)
+      
+      if (res.data.candidates) {
+        setSelectedElection(election)
+        setModalCandidates(res.data.candidates)
+        setIsVoteModalOpen(true)
+      } else {
+        alert("No candidates found for this election.")
       }
-    ],
-    pastElections: [
-      {
-        election_id: 3,
-        election_name: 'Municipal Corporation Election 2024',
-        description: 'Local body election',
-        start_date: '2024-11-01',
-        end_date: '2024-11-05',
-        status: 'completed',
-        candidate_count: 12,
-        total_votes: 45678,
-        winner: {
-          candidate_id: 1,
-          candidate_name: 'Rajesh Kumar',
-          party_name: 'Progressive Party',
-          vote_count: 18234
-        }
-      },
-      {
-        election_id: 4,
-        election_name: 'Panchayat Election 2024',
-        description: 'Village level election',
-        start_date: '2024-09-10',
-        end_date: '2024-09-12',
-        status: 'completed',
-        candidate_count: 6,
-        total_votes: 3421,
-        winner: {
-          candidate_id: 2,
-          candidate_name: 'Sunita Devi',
-          party_name: "People's Alliance",
-          vote_count: 1567
-        }
-      }
-    ],
-    userStats: {
-      elections_participated: 3,
-      active_elections: 2,
-      total_elections: 8
-    },
-    candidates: [
-      {
-        candidate_id: 1,
-        candidate_name: 'Amit Shah',
-        election_id: 1,
-        party_name: 'National Party',
-        party_symbol: 'NP'
-      },
-      {
-        candidate_id: 2,
-        candidate_name: 'Priya Sharma',
-        election_id: 1,
-        party_name: 'Democratic Front',
-        party_symbol: 'DF'
-      },
-      {
-        candidate_id: 3,
-        candidate_name: 'Vikram Singh',
-        election_id: 2,
-        party_name: 'Progressive Party',
-        party_symbol: 'PP'
-      }
-    ]
+    } catch (error) {
+      console.error("Failed to fetch candidates", error)
+      alert("Error loading voting data.")
+    } finally {
+      setProcessingElectionId(null)
+    }
   }
 
-  if (!data) {
+  const handleViewResults = (id: number) => {
+    setResultElectionId(id)
+    setIsResultModalOpen(true)
+  }
+
+  // --- Render ---
+
+  if (loading) {
     return (
-      <div className='min-h-screen flex items-center justify-center text-gray-700'>
-        <Loader />
+      <div className='min-h-screen flex items-center justify-center bg-gray-50'>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+          <p className="text-gray-500 font-medium">Loading Voter Portal...</p>
+        </div>
       </div>
     )
   }
 
-  if (loading) return <Loader />
-  const displayData = data
-  const hasVoted = (displayData.votingStatus?.length || 0) > 0
+  if (!data || error) {
+    return (
+      <div className='min-h-screen flex items-center justify-center bg-gray-50 text-red-600'>
+        <div className="flex items-center gap-2 bg-white p-6 rounded-xl shadow-sm border border-red-100">
+          <AlertCircle className="w-5 h-5" />
+          <p>{error || 'Failed to load data'}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className='min-h-screen bg-gray-50'>
+    <div className='min-h-screen bg-gray-50 animate-in fade-in duration-500'>
       {/* Header */}
       <header className='bg-white border-b border-gray-200 sticky top-0 z-50'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -240,78 +221,55 @@ export default function DashboardPage () {
               <div className='w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center'>
                 <Vote className='w-5 h-5 text-white' />
               </div>
-              <div>
-                <h1 className='font-semibold text-gray-900'>EVM</h1>
-              </div>
+              <div><h1 className='font-semibold text-gray-900'>EVM Portal</h1></div>
             </div>
             <Button
               variant='outline'
               size='sm'
               onClick={async () => {
                 await fetch('/api/auth/logout', { method: 'GET' })
+                window.location.href = '/'
               }}
-              className='border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 bg-transparent'
-              asChild
+              className='border-gray-200 text-gray-600 hover:text-gray-900 bg-transparent'
             >
-              <Link href='/'>
-                <LogOut className='w-4 h-4 mr-2' />
-                Logout
-              </Link>
+              <LogOut className='w-4 h-4 mr-2' /> Logout
             </Button>
           </div>
         </div>
       </header>
 
       <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+        
         {/* Welcome Section */}
-        <div className='bg-white rounded-2xl border border-gray-200 p-6 mb-8'>
+        <div className='bg-white rounded-2xl border border-gray-200 p-6 mb-8 shadow-sm'>
           <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
             <div>
-              <h2 className='text-2xl font-bold text-gray-900 mb-1'>
-                Welcome, {displayData.voter?.name || 'Voter'}
-              </h2>
+              <h2 className='text-2xl font-bold text-gray-900 mb-1'>Welcome, {data.voter?.name || 'Voter'}</h2>
               <div className='flex flex-wrap items-center gap-4 text-sm text-gray-600'>
                 <div className='flex items-center gap-1.5'>
                   <MapPin className='w-4 h-4 text-gray-400' />
-                  <span>Region: {displayData.voter?.region_name || 'N/A'}</span>
+                  <span>Region: {data.voter?.region_name || 'N/A'}</span>
                 </div>
                 <div className='flex items-center gap-1.5'>
-                  {hasVoted ? (
-                    <>
-                      <CheckCircle2 className='w-4 h-4 text-emerald-500' />
-                      <span className='text-emerald-600'>Already Voted</span>
-                    </>
-                  ) : (
-                    <>
-                      <Clock className='w-4 h-4 text-amber-500' />
-                      <span className='text-amber-600'>Active Voter</span>
-                    </>
-                  )}
+                  <Clock className='w-4 h-4 text-amber-500' />
+                  <span className='text-amber-600'>Active Voter</span>
                 </div>
               </div>
             </div>
-            <Badge
-              variant='outline'
-              className='self-start md:self-center border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-1'
-            >
-              <Shield className='w-3.5 h-3.5 mr-1.5' />
-              Verified Voter
+            <Badge variant='outline' className='self-start md:self-center border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-1'>
+              <Shield className='w-3.5 h-3.5 mr-1.5' /> Verified Voter
             </Badge>
           </div>
         </div>
 
-        {/* Statistics Cards */}
+        {/* Stats */}
         <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8'>
           <Card className='border-gray-200'>
             <CardContent className='p-6'>
               <div className='flex items-center justify-between'>
                 <div>
-                  <p className='text-sm font-medium text-gray-500 mb-1'>
-                    Elections Participated
-                  </p>
-                  <p className='text-3xl font-bold text-gray-900'>
-                    {displayData.userStats?.elections_participated || 0}
-                  </p>
+                  <p className='text-sm font-medium text-gray-500 mb-1'>Elections Participated</p>
+                  <p className='text-3xl font-bold text-gray-900'>{data.userStats.elections_participated}</p>
                 </div>
                 <div className='w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center'>
                   <Vote className='w-6 h-6 text-blue-600' />
@@ -323,12 +281,8 @@ export default function DashboardPage () {
             <CardContent className='p-6'>
               <div className='flex items-center justify-between'>
                 <div>
-                  <p className='text-sm font-medium text-gray-500 mb-1'>
-                    Active Elections
-                  </p>
-                  <p className='text-3xl font-bold text-gray-900'>
-                    {displayData.userStats?.active_elections || 0}
-                  </p>
+                  <p className='text-sm font-medium text-gray-500 mb-1'>Active Elections</p>
+                  <p className='text-3xl font-bold text-gray-900'>{data.userStats.active_elections}</p>
                 </div>
                 <div className='w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center'>
                   <Clock className='w-6 h-6 text-emerald-600' />
@@ -340,12 +294,8 @@ export default function DashboardPage () {
             <CardContent className='p-6'>
               <div className='flex items-center justify-between'>
                 <div>
-                  <p className='text-sm font-medium text-gray-500 mb-1'>
-                    Total Elections
-                  </p>
-                  <p className='text-3xl font-bold text-gray-900'>
-                    {displayData.userStats?.total_elections || 0}
-                  </p>
+                  <p className='text-sm font-medium text-gray-500 mb-1'>Total Elections</p>
+                  <p className='text-3xl font-bold text-gray-900'>{data.userStats.total_elections}</p>
                 </div>
                 <div className='w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center'>
                   <BarChart3 className='w-6 h-6 text-amber-600' />
@@ -355,64 +305,49 @@ export default function DashboardPage () {
           </Card>
         </div>
 
-        {/* Available Elections */}
+        {/* Active Elections */}
         <Card className='border-gray-200 mb-8'>
           <CardHeader className='border-b border-gray-100'>
             <div className='flex items-center justify-between'>
               <div>
-                <CardTitle className='text-lg'>
-                  Elections Available to Vote
-                </CardTitle>
-                <CardDescription>
-                  Cast your vote in ongoing elections
-                </CardDescription>
+                <CardTitle className='text-lg'>Elections Available to Vote</CardTitle>
+                <CardDescription>Cast your vote in ongoing elections</CardDescription>
               </div>
-              <Badge
-                variant='secondary'
-                className='bg-emerald-50 text-emerald-700 border-0'
-              >
-                {displayData.activeElections?.length || 0} Active
+              <Badge variant='secondary' className='bg-emerald-50 text-emerald-700 border-0'>
+                {data.activeElections.length} Active
               </Badge>
             </div>
           </CardHeader>
           <CardContent className='p-0'>
-            {displayData.activeElections?.length > 0 ? (
+            {data.activeElections.length > 0 ? (
               <div className='divide-y divide-gray-100'>
-                {displayData.activeElections.map(election => (
-                  <div
-                    key={election.election_id}
-                    className='p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors'
-                  >
+                {data.activeElections.map(election => (
+                  <div key={election.election_id} className='p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors'>
                     <div className='flex-1'>
-                      <h3 className='font-semibold text-gray-900 mb-1'>
-                        {election.election_name}
-                      </h3>
-                      <p className='text-sm text-gray-500 mb-2'>
-                        {election.description}
-                      </p>
+                      <h3 className='font-semibold text-gray-900 mb-1'>{election.election_name}</h3>
+                      <p className='text-sm text-gray-500 mb-2'>{election.description}</p>
                       <div className='flex flex-wrap items-center gap-4 text-xs text-gray-500'>
                         <div className='flex items-center gap-1'>
                           <Calendar className='w-3.5 h-3.5' />
-                          <span>
-                            {new Date(election.start_date).toLocaleDateString()}{' '}
-                            - {new Date(election.end_date).toLocaleDateString()}
-                          </span>
+                          <span>{new Date(election.start_date).toLocaleDateString()} - {new Date(election.end_date).toLocaleDateString()}</span>
                         </div>
                         <div className='flex items-center gap-1'>
                           <Users className='w-3.5 h-3.5' />
                           <span>{election.candidate_count} Candidates</span>
                         </div>
-                        <div className='flex items-center gap-1'>
-                          <Vote className='w-3.5 h-3.5' />
-                          <span>
-                            {election.total_votes?.toLocaleString() || 0} Votes
-                          </span>
-                        </div>
                       </div>
                     </div>
-                    <Button className='bg-gray-900 hover:bg-gray-800 text-white shrink-0'>
-                      Vote Now
-                      <ChevronRight className='w-4 h-4 ml-1' />
+                    
+                    <Button 
+                      onClick={() => handleVoteClick(election)}
+                      disabled={processingElectionId === election.election_id}
+                      className='bg-gray-900 hover:bg-gray-800 text-white shrink-0 min-w-[120px]'
+                    >
+                      {processingElectionId === election.election_id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>Vote Now <ChevronRight className='w-4 h-4 ml-1' /></>
+                      )}
                     </Button>
                   </div>
                 ))}
@@ -422,98 +357,77 @@ export default function DashboardPage () {
                 <div className='w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4'>
                   <AlertCircle className='w-8 h-8 text-gray-400' />
                 </div>
-                <h3 className='font-medium text-gray-900 mb-1'>
-                  No Active Elections
-                </h3>
-                <p className='text-sm text-gray-500'>
-                  There are no elections available for voting at this time.
-                </p>
+                <h3 className='font-medium text-gray-900 mb-1'>No Active Elections</h3>
+                <p className='text-sm text-gray-500'>There are no elections available right now.</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Past Elections & Results */}
+        {/* Past Elections */}
         <Card className='border-gray-200'>
           <CardHeader className='border-b border-gray-100'>
             <div className='flex items-center justify-between'>
               <div>
-                <CardTitle className='text-lg'>
-                  Past Elections & Results
-                </CardTitle>
-                <CardDescription>
-                  View completed elections and their outcomes
-                </CardDescription>
+                <CardTitle className='text-lg'>Past Elections & Results</CardTitle>
+                <CardDescription>View completed elections and outcomes</CardDescription>
               </div>
-              <Badge
-                variant='secondary'
-                className='bg-gray-100 text-gray-700 border-0'
-              >
-                {displayData.pastElections?.length || 0} Completed
+              <Badge variant='secondary' className='bg-gray-100 text-gray-700 border-0'>
+                {data.pastElections.length} Completed
               </Badge>
             </div>
           </CardHeader>
           <CardContent className='p-0'>
-            {displayData.pastElections?.length > 0 ? (
+            {data.pastElections.length > 0 ? (
               <div className='divide-y divide-gray-100'>
-                {displayData.pastElections.map(election => (
-                  <div
-                    key={election.election_id}
-                    className='p-6 hover:bg-gray-50 transition-colors'
-                  >
+                {data.pastElections.map(election => (
+                  <div key={election.election_id} className='p-6 hover:bg-gray-50 transition-colors'>
                     <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4'>
                       <div className='flex-1'>
                         <div className='flex items-center gap-2 mb-1'>
-                          <h3 className='font-semibold text-gray-900'>
-                            {election.election_name}
-                          </h3>
-                          <Badge
-                            variant='outline'
-                            className='text-xs border-gray-200 text-gray-500'
-                          >
-                            Completed
-                          </Badge>
+                          <h3 className='font-semibold text-gray-900'>{election.election_name}</h3>
+                          <Badge variant='outline' className='text-xs border-gray-200 text-gray-500'>Completed</Badge>
                         </div>
-                        <p className='text-sm text-gray-500 mb-3'>
-                          {election.description}
-                        </p>
+                        <p className='text-sm text-gray-500 mb-3'>{election.description}</p>
                         <div className='flex flex-wrap items-center gap-4 text-xs text-gray-500'>
                           <div className='flex items-center gap-1'>
                             <Calendar className='w-3.5 h-3.5' />
-                            <span>
-                              Ended:{' '}
-                              {new Date(election.end_date).toLocaleDateString()}
-                            </span>
+                            <span>Ended: {new Date(election.end_date).toLocaleDateString()}</span>
                           </div>
                           <div className='flex items-center gap-1'>
                             <Vote className='w-3.5 h-3.5' />
-                            <span>
-                              {election.total_votes?.toLocaleString() || 0}{' '}
-                              Total Votes
-                            </span>
+                            <span>{election.total_votes?.toLocaleString() || 0} Votes</span>
                           </div>
                         </div>
                       </div>
-                      {election.winner && (
-                        <div className='bg-amber-50 border border-amber-100 rounded-xl p-4 lg:min-w-[280px]'>
-                          <div className='flex items-center gap-3'>
-                            <div className='w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center'>
-                              <Trophy className='w-5 h-5 text-amber-600' />
-                            </div>
-                            <div>
-                              <p className='text-xs text-amber-600 font-medium mb-0.5'>
-                                Winner
-                              </p>
-                              <p className='font-semibold text-gray-900'>
-                                {election.winner.candidate_name}
-                              </p>
-                              <p className='text-xs text-gray-500'>
-                                {election.winner.party_name} •{' '}
-                                {election.winner.vote_count?.toLocaleString()}{' '}
-                                votes
-                              </p>
+                      
+                      {/* Winner / Results Block */}
+                      {election.winner ? (
+                        <div className='flex flex-col gap-2 min-w-[280px]'>
+                          <div className='bg-amber-50 border border-amber-100 rounded-xl p-4'>
+                            <div className='flex items-center gap-3'>
+                              <div className='w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center'>
+                                <Trophy className='w-5 h-5 text-amber-600' />
+                              </div>
+                              <div>
+                                <p className='text-xs text-amber-600 font-medium mb-0.5'>Winner</p>
+                                <p className='font-semibold text-gray-900'>{election.winner.candidate_name}</p>
+                                <p className='text-xs text-gray-500'>{election.winner.party_name} • {election.winner.vote_count?.toLocaleString()} votes</p>
+                              </div>
                             </div>
                           </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewResults(election.election_id)}
+                            className="w-full border-gray-200 hover:bg-gray-50 text-gray-600"
+                          >
+                            <BarChart3 className="w-4 h-4 mr-2" /> View Full Analysis
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className='bg-gray-50 border border-gray-100 rounded-xl p-4 lg:min-w-[280px] text-center'>
+                          <span className="text-sm text-gray-500 italic">Results pending...</span>
                         </div>
                       )}
                     </div>
@@ -525,17 +439,28 @@ export default function DashboardPage () {
                 <div className='w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4'>
                   <Clock className='w-8 h-8 text-gray-400' />
                 </div>
-                <h3 className='font-medium text-gray-900 mb-1'>
-                  No Past Elections
-                </h3>
-                <p className='text-sm text-gray-500'>
-                  Completed elections will appear here.
-                </p>
+                <h3 className='font-medium text-gray-900 mb-1'>No Past Elections</h3>
+                <p className='text-sm text-gray-500'>Completed elections will appear here.</p>
               </div>
             )}
           </CardContent>
         </Card>
       </main>
+
+      {/* Modals */}
+      <VoteModal
+        isOpen={isVoteModalOpen}
+        onClose={() => setIsVoteModalOpen(false)}
+        election={selectedElection}
+        candidates={modalCandidates}
+        onVoteSuccess={() => window.location.reload()}
+      />
+
+      <ResultModal 
+        isOpen={isResultModalOpen} 
+        onClose={() => setIsResultModalOpen(false)} 
+        electionId={resultElectionId} 
+      />
     </div>
   )
 }
