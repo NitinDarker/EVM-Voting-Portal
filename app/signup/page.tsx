@@ -51,7 +51,7 @@ export default function Signup () {
       axios.post('/api/auth/register/send-otp', payload),
       {
         loading: 'Sending OTP...',
-        success: `OTP sent successfully to ${cred.email}!`,
+        success: `OTP sent successfully.`,
         error: err => err?.response?.data?.error || 'Failed to send OTP'
       }
     )

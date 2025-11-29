@@ -6,7 +6,6 @@ import { verifyAdminToken } from "@/lib/adminAuth";
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // VOTER PROTECTED ROUTES
   if (pathname.startsWith("/api/voter") || pathname.startsWith("/api/vote")) {
     const token = req.cookies.get("session")?.value;
 
@@ -22,7 +21,6 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ADMIN PROTECTED ROUTES
   if (
     pathname.startsWith("/api/admin") ||
     pathname.startsWith("/api/election") ||
