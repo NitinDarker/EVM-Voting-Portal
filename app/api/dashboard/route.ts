@@ -1,24 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-interface VoterRow {
-  voter_id: number;
-  v_name: string;
-  v_email: string;
-  region_name: string;
-}
-
-interface ActiveElection {
-  election_id: number;
-  election_name: string;
-  description: string | null;
-  start_date: string;
-  end_date: string;
-  region_name: string;
-  candidate_count: number;
-  total_votes: number;
-}
-
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);

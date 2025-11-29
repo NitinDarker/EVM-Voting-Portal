@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const election_id = Number(params.election_id);
-    const demo = req.nextUrl.searchParams.get("demo") === "1"; // allow bypass for professor
+    const demo = req.nextUrl.searchParams.get("demo") === "1"; 
 
     // Get election meta
     const [election] = (await db.query(

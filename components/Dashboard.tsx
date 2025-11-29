@@ -15,7 +15,6 @@ import {
   AlertCircle,
   BarChart3,
   Shield,
-  Loader
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -75,160 +74,9 @@ interface DashboardData {
   candidates: Candidate[]
 }
 
-export default function DashboardPage () {
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function loadAll () {
-      try {
-        setLoading(true)
-
-        const [vInfo, vStats, activeE, pastE] = await Promise.all([
-          axios.get(`/api/voter/me`, { withCredentials: true }),
-          axios.get(`/api/voter/stats`, { withCredentials: true }),
-          axios.get(`/api/election/active`),
-          axios.get(`/api/election/past`)
-        ])
-
-        setData({
-          voter: {
-            voter_id: vInfo.data.voter_id,
-            name: vInfo.data.v_name,
-            email: vInfo.data.v_email,
-            region_name: vInfo.data.r_name
-          },
-          activeElections: activeE.data ?? [],
-          pastElections: pastE.data ?? [],
-          userStats: {
-            elections_participated: vStats.data.participated,
-            active_elections: vStats.data.active,
-            total_elections: vStats.data.total
-          },
-          votingStatus: [],
-          candidates: []
-        })
-      } catch (e) {
-        console.error(e)
-        setError('Dashboard failed to load')
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadAll()
-  }, [])
-
-  useEffect(() => {
-    if (data) console.log('Updated data:', data)
-  }, [data])
-
-  // Demo data fallback when database is not connected
-  const demoData: DashboardData = {
-    voter: {
-      voter_id: 1,
-      name: 'John Doe',
-      email: 'john@example.com',
-      region_name: 'Maharashtra'
-    },
-    votingStatus: [],
-    activeElections: [
-      {
-        election_id: 1,
-        election_name: 'General Election 2025',
-        description: 'National parliamentary election',
-        start_date: '2025-01-15',
-        end_date: '2025-01-20',
-        status: 'active',
-        candidate_count: 5,
-        total_votes: 1247
-      },
-      {
-        election_id: 2,
-        election_name: 'State Assembly Election',
-        description: 'State legislative assembly election',
-        start_date: '2025-02-01',
-        end_date: '2025-02-05',
-        status: 'active',
-        candidate_count: 8,
-        total_votes: 892
-      }
-    ],
-    pastElections: [
-      {
-        election_id: 3,
-        election_name: 'Municipal Corporation Election 2024',
-        description: 'Local body election',
-        start_date: '2024-11-01',
-        end_date: '2024-11-05',
-        status: 'completed',
-        candidate_count: 12,
-        total_votes: 45678,
-        winner: {
-          candidate_id: 1,
-          candidate_name: 'Rajesh Kumar',
-          party_name: 'Progressive Party',
-          vote_count: 18234
-        }
-      },
-      {
-        election_id: 4,
-        election_name: 'Panchayat Election 2024',
-        description: 'Village level election',
-        start_date: '2024-09-10',
-        end_date: '2024-09-12',
-        status: 'completed',
-        candidate_count: 6,
-        total_votes: 3421,
-        winner: {
-          candidate_id: 2,
-          candidate_name: 'Sunita Devi',
-          party_name: "People's Alliance",
-          vote_count: 1567
-        }
-      }
-    ],
-    userStats: {
-      elections_participated: 3,
-      active_elections: 2,
-      total_elections: 8
-    },
-    candidates: [
-      {
-        candidate_id: 1,
-        candidate_name: 'Amit Shah',
-        election_id: 1,
-        party_name: 'National Party',
-        party_symbol: 'NP'
-      },
-      {
-        candidate_id: 2,
-        candidate_name: 'Priya Sharma',
-        election_id: 1,
-        party_name: 'Democratic Front',
-        party_symbol: 'DF'
-      },
-      {
-        candidate_id: 3,
-        candidate_name: 'Vikram Singh',
-        election_id: 2,
-        party_name: 'Progressive Party',
-        party_symbol: 'PP'
-      }
-    ]
-  }
-
-  if (!data) {
-    return (
-      <div className='min-h-screen flex items-center justify-center text-gray-700'>
-        <Loader />
-      </div>
-    )
-  }
-
-  if (loading) return <Loader />
+export default function DashboardUI ({ data }: { data: DashboardData }) {
   const displayData = data
-  const hasVoted = (displayData.votingStatus?.length || 0) > 0
+  const hasVoted = displayData.votingStatus?.length > 0
 
   return (
     <div className='min-h-screen bg-gray-50'>
@@ -241,15 +89,17 @@ export default function DashboardPage () {
                 <Vote className='w-5 h-5 text-white' />
               </div>
               <div>
-                <h1 className='font-semibold text-gray-900'>EVM</h1>
+                <h1 className='font-semibold text-gray-900'>
+                  National Voting Portal
+                </h1>
+                <p className='text-xs text-gray-500'>
+                  Secure Electronic Voting
+                </p>
               </div>
             </div>
             <Button
               variant='outline'
               size='sm'
-              onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'GET' })
-              }}
               className='border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 bg-transparent'
               asChild
             >
@@ -536,6 +386,23 @@ export default function DashboardPage () {
           </CardContent>
         </Card>
       </main>
+
+      {/* Footer */}
+      <footer className='border-t border-gray-200 bg-white mt-12'>
+        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'>
+          <div className='flex flex-col sm:flex-row items-center justify-between gap-4'>
+            <div className='flex items-center gap-2'>
+              <div className='w-6 h-6 bg-gray-900 rounded flex items-center justify-center'>
+                <Vote className='w-3 h-3 text-white' />
+              </div>
+              <span className='text-sm text-gray-600'>VoteSecure</span>
+            </div>
+            <p className='text-xs text-gray-400'>
+              © 2025 National Voting Portal. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

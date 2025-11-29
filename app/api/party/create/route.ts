@@ -39,8 +39,16 @@ export async function POST(req: NextRequest) {
       [p_name, p_symbol ?? null]
     );
 
+    const party_id = await db.query(
+      `
+      SELECT party_id FROM party
+      WHERE p_name=?
+      `,
+      [p_name]
+    );
+
     return NextResponse.json(
-      { success: true, message: "Party created" },
+      { success: true, message: "Party created", party_id:party_id[0] },
       { status: 201 }
     );
   } catch (err) {

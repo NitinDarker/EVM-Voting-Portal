@@ -5,36 +5,36 @@ import { verifyAdminToken } from "@/lib/adminAuth";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-
-  if (pathname.startsWith("/api/voter") || pathname.startsWith("/api/vote")) {
+  if (
+    pathname.startsWith("/api/dashboard") ||
+    pathname.startsWith("/api/voter") ||
+    pathname.startsWith("/api/vote")
+  ) {
     const token = req.cookies.get("session")?.value;
-
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
     const user = verifyToken(token);
     if (!user) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
-
     return NextResponse.next();
   }
 
   if (
     pathname.startsWith("/api/admin") ||
-    pathname.startsWith("/api/election") ||
-    pathname.startsWith("/api/candidate")
+    pathname.startsWith("/api/election/create") ||
+    pathname.startsWith("/api/candidate/create") ||
+    pathname.startsWith("/api/party/create") ||
+    pathname.startsWith("/api/participant/add")
   ) {
     const adminToken = req.cookies.get("admin_session")?.value;
-
     if (!adminToken) {
       return NextResponse.json(
         { error: "Admin Unauthorized" },
         { status: 401 }
       );
     }
-
     const admin = verifyAdminToken(adminToken);
     if (!admin || !admin.isAdmin) {
       return NextResponse.json(
@@ -42,11 +42,8 @@ export function middleware(req: NextRequest) {
         { status: 403 }
       );
     }
-
     return NextResponse.next();
   }
-
-  // Default allow
   return NextResponse.next();
 }
 

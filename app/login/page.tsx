@@ -16,56 +16,38 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { states } from '@/lib/states'
 import Link from 'next/link'
 import { GlowingEffect } from '@/components/ui/glowing-effect'
 
 export default function Signup () {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
-  const [selected, setSelected] = useState('')
   const [cred, setCred] = useState({
-    username: '',
-    phone: Number(),
-    firstName: '',
-    lastName: '',
+    email: '',
     password: ''
   })
 
-  async function signupHandler () {
-    const payload = {
-      ...cred,
-      phone: Number(cred.phone)
-    }
-
-    if (!payload.username.trim()) return toast.error('Please enter a username.')
-    if (payload.username.trim().length < 3)
-      return toast.error('Username must be at least 3 characters long.')
-    if (!payload.phone) return toast.error('Please enter a valid phone number.')
-    if (!/^\d{10}$/.test(payload.phone.toString()))
-      return toast.error('Phone number must be exactly 10 digits.')
-
-    if (!payload.firstName.trim())
-      return toast.error('Please enter your first name.')
-    if (!payload.lastName.trim())
-      return toast.error('Please enter your last name.')
-
-    if (!payload.password.trim()) return toast.error('Please set a password.')
-    if (payload.password.length < 8)
+  async function loginHandler () {
+    if (!cred.email.trim() || !cred.email.includes('@'))
+      return toast.error('Please enter a valid email address.')
+    if (!cred.password.trim() || cred.password.length < 8)
       return toast.error('Password must be at least 8 characters long.')
 
+    const payload = {
+      email: cred.email,
+      password: cred.password,
+    }
+
     const response = await toast.promise(
-      axios.post('http://localhost:3000/api/auth/register', payload),
+      axios.post('/api/auth/login', payload),
       {
-        loading: 'Creating your account...',
-        success: `Account created successfully!`,
-        error: err =>
-          err?.response?.data?.error || 'Signup failed. Please try again.'
+        loading: 'Logging in...',
+        success: `Logged in successfully.`,
+        error: err => err?.response?.data?.error || 'Log In Failed'
       }
     )
 
     if (response.data.success) {
-      localStorage.setItem('token', response.data.token)
       setTimeout(() => router.push('/dashboard'), 500)
     }
   }
@@ -88,41 +70,17 @@ export default function Signup () {
             inactiveZone={0.01}
           />
           <CardHeader>
-            <CardTitle>Create an Account</CardTitle>
+            <CardTitle>Log In</CardTitle>
           </CardHeader>
           <CardContent className='flex gap-6 flex-col'>
-            <div>
-              <Label htmlFor='name'>Full Name</Label>
-              <Input
-                id='name'
-                placeholder='Enter your Full Name'
-                onChange={handleChange}
-              />
-            </div>
             <div>
               <Label htmlFor='email'>Email</Label>
               <Input
                 id='email'
                 placeholder='Enter your email'
                 onChange={handleChange}
+                value={cred.email}
               />
-            </div>
-            <div className='w-full'>
-              <label className='block mb-1'>State</label>
-              <select
-                value={selected}
-                onChange={e => setSelected(e.target.value)}
-                className='w-full px-3 py-2 border rounded-md border-neutral-700 focus:ring-emerald-600 bg-transparent text-neutral-700 text-sm shadow-xs transition-[color,box-shadow] outline-none'
-              >
-                <option value='' className=''>
-                  Select State
-                </option>
-                {states.map((state, i) => (
-                  <option key={i} value={state}>
-                    {state}
-                  </option>
-                ))}
-              </select>
             </div>
             <div className='relative'>
               <Label htmlFor='password'>Password</Label>
@@ -131,6 +89,7 @@ export default function Signup () {
                 id='password'
                 placeholder='Enter your Password'
                 onChange={handleChange}
+                value={cred.password}
               />
               <Button
                 onClick={() => setShowPassword(!showPassword)}
@@ -147,17 +106,17 @@ export default function Signup () {
           </CardContent>
           <CardFooter className='flex flex-col gap-3 items-center justify-center'>
             <Button
-              type='submit'
-              variant='primary'
+              onClick={loginHandler}
               size='full'
-              onClick={signupHandler}
+              variant='dash'
+              className='px-8 py-2 z-50 hover:shadow-2xl'
             >
-              Sign Up
+              Log In
             </Button>
             <div>
-              <span>Already have an account? </span>
-              <Link href='/signin' className='text-neutral-500 underline'>
-                Login
+              <span>Doesn't have an account? </span>
+              <Link href='/login' className='text-neutral-500 underline'>
+                Signup
               </Link>
             </div>
           </CardFooter>
