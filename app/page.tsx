@@ -1,6 +1,5 @@
 'use client'
 
-import type React from 'react'
 import Link from 'next/link'
 import { Vote, ChevronRight, Lock, LayoutDashboard } from 'lucide-react'
 import { Button } from '@/components/ui/button'

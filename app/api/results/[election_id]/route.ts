@@ -5,11 +5,9 @@ import { db } from "@/lib/db";
 
 export async function GET(
   req: NextRequest,
-  // 👇 CHANGE 1: params is a Promise now
   { params }: { params: Promise<{ election_id: string }> }
 ) {
   try {
-    // 👇 CHANGE 2: You must await params
     const { election_id: idSlug } = await params;
     const election_id = Number(idSlug);
 
@@ -19,9 +17,6 @@ export async function GET(
 
     const demo = req.nextUrl.searchParams.get("demo") === "1";
 
-    // ... The rest of your code remains exactly the same ...
-
-    // Get election meta
     const [election] = (await db.query(
       `SELECT e_name, end_time FROM election WHERE election_id = ?`,
       [election_id]

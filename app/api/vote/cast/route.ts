@@ -40,7 +40,6 @@ export async function POST(req: NextRequest) {
     // START TRANSACTION
     await connection.beginTransaction();
 
-    // 1. Validate election (lock row)
     const [election] = (await connection.query(
       `
       SELECT start_time, end_time 
@@ -68,7 +67,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Validate candidate participates in the election
     const [participant] = (await connection.query(
       `
       SELECT * FROM participant
@@ -86,7 +84,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Check if voter already voted (ROW-LEVEL LOCK)
     const [voteStatus] = (await connection.query(
       `
       SELECT has_voted 
@@ -102,7 +99,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Already voted" }, { status: 400 });
     }
 
-    // 4. Insert anonymous vote
     await connection.query(
       `
       INSERT INTO anonymous_vote (election_id, candidate_id)
@@ -111,7 +107,6 @@ export async function POST(req: NextRequest) {
       [election_id, candidate_id]
     );
 
-    // 5. Update voting_status
     if (voteStatus.length === 0) {
       await connection.query(
         `
