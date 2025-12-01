@@ -4,7 +4,7 @@ import AdminDashboard from "./dashboard"
 export default async function DashboardPage() {
   const cookieStore = await cookies()
   const session = cookieStore.get("admin_session")?.value
-  const adminInfo = await fetch("http://localhost:3000/api/admin/me", {
+  const adminInfo = await fetch("/api/admin/me", {
     cache: "no-store",
     headers: {
       Cookie: `admin_session=${session}`
