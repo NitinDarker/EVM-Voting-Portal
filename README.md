@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EVM Voting Portal
 
-## Getting Started
+A secure, scalable online election system built using Next.js, designed to simulate an EVM-style voting process with strong validation, user authentication, and administrative control.
 
-First, run the development server:
+Users register using verified email OTPs, vote only once, and access responsive dashboards while all votes are stored securely in MySQL.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+> Hosted on Vercel: https://evm-portal.vercel.app/
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Authentication & Access
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Redis-based session management and OTP system
+- Email verification before account creation
+- Separate dashboards for voters and admins
 
-## Learn More
+> [Demo Video](https://youtu.be/hXw9c5eQ3ko?si=9N28HtCFgjVlu59O)
 
-To learn more about Next.js, take a look at the following resources:
+### Voting Integrity
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Prevents double voting
+- Maintains voter traceability without exposing identity publicly
+- Handles concurrent voting transactions correctly
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### System Reliability
 
-## Deploy on Vercel
+- Optimized MySQL relational schema
+- Atomic updates ensuring vote integrity
+- Redis caching for fast session access
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech Stack
+
+### Frontend
+
+- Next.js
+- Tailwind CSS / ShadCN UI / Accertainity UI / Radix UI
+
+### Backend
+
+- Next.js App Router APIs
+
+### Database
+
+- MySQL as primary database
+- Redis for OTP/session caching
+
+## Database Schema
+
+![ER Diagram](./assets/er-model.png)
+
+## Screenshots
+
+### Landing Page
+![Landing Page](./assets/landing.png)
+
+### Voter Dashboard
+![Dashboard](./assets/voter-dashboard.png)
+
+### Admin Dashboard
+![Admin Dashboard](./assets/admin-dashboard.png)
+
+### Vote Menu
+![Voting Menu](./assets/vote.png)
+
+### Results
+![Results](./assets/results.png)
