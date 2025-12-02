@@ -1,13 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import axios from 'axios'
 import {
   Vote,
   LogOut,
   MapPin,
-  CheckCircle2,
   Clock,
   Trophy,
   Users,
@@ -15,7 +13,6 @@ import {
   ChevronRight,
   AlertCircle,
   BarChart3,
-  Shield,
   Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -28,10 +25,9 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { VoteModal } from '@/components/VoteModal'
-import { ResultModal } from '@/components/ResultsModal' // Make sure you created this file!
+import { ResultModal } from '@/components/ResultsModal'
 import { BackgroundBeams } from '@/components/ui/background-beams'
 
-// --- Types ---
 interface Voter {
   voter_id: number
   name: string
@@ -105,8 +101,8 @@ export default function DashboardPage () {
         const [vInfo, vStats, activeE, pastE] = await Promise.all([
           axios.get(`/api/voter/me`, { withCredentials: true }),
           axios.get(`/api/voter/stats`, { withCredentials: true }),
-          axios.get(`/api/election/active`),
-          axios.get(`/api/election/past`)
+          axios.get(`/api/election/active`, { withCredentials: true }),
+          axios.get(`/api/election/past`, { withCredentials: true })
         ])
 
         const rawActive = Array.isArray(activeE.data)

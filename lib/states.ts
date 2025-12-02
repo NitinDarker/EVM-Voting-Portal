@@ -4,6 +4,7 @@ export const states = [
   "Assam",
   "Bihar",
   "Chhattisgarh",
+  "Delhi",
   "Goa",
   "Gujarat",
   "Haryana",

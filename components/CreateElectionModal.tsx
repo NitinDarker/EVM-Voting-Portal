@@ -37,7 +37,6 @@ export default function CreateElectionModal({
   setShowCreateModal,
   refetchElections
 }: CreateElectionModalProps) {
-  // State Management
   const [step, setStep] = useState<1 | 2>(1)
   const [loadingCandidates, setLoadingCandidates] = useState<boolean>(false)
   const [candidateList, setCandidateList] = useState<Candidate[]>([])
@@ -53,7 +52,6 @@ export default function CreateElectionModal({
   const [selectedCandidates, setSelectedCandidates] = useState<number[]>([])
   const [newElectionId, setNewElectionId] = useState<number | null>(null)
 
-  // --- FETCH CANDIDATES ON MOUNT ---
   useEffect(() => {
     if (showCreateModal) {
       const fetchCandidates = async () => {
@@ -62,7 +60,6 @@ export default function CreateElectionModal({
           const res = await fetch('/api/candidate/list')
           if (!res.ok) throw new Error('Failed to fetch candidates')
           const data = await res.json()
-          // Adjust 'data.candidates' if your API returns the array directly as 'data'
           setCandidateList(Array.isArray(data) ? data : data.candidates || [])
         } catch (error) {
           console.error(error)
@@ -215,10 +212,6 @@ export default function CreateElectionModal({
                 className='w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white'
               >
                 <option value=''>Select a Region...</option>
-                {/* WARNING: If states is just an array of strings ['A', 'B'], 
-                   you need to map it differently: (name, idx) => <option value={idx+1}> 
-                   Currently assuming states = [{ id: 1, name: '...' }]
-                */}
                 {states.map((name, idx: any) => (
                   <option value={idx+1}>
                     {name}
