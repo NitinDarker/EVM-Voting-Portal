@@ -86,13 +86,14 @@ export default function OtpVerification () {
       const data = await res.json()
 
       if (!res.ok) {
-        toast.error(data.error || 'Verification failed') 
+        toast.error(data.error || 'Verification failed')
         setIsVerifying(false)
         return
       }
 
       toast.success('Account Created Successfully!')
-      window.location.href = '/login'
+      sessionStorage.removeItem('temp_reg_email')
+      window.location.href = '/dashboard'
     } catch (err) {
       console.error('VERIFY OTP REQUEST FAILED:', err)
       toast.error('Server error.')

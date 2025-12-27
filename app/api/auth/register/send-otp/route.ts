@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     const [existing] = await db.query(
-      "SELECT voter_id FROM Voter WHERE v_email = ?",
+      "SELECT voter_id FROM voter WHERE v_email = ?",
       [email]
     );
 

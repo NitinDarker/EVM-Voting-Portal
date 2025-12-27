@@ -9,8 +9,8 @@ export async function GET(req: NextRequest) {
     const id = user?.voter_id;
 
     const [rows] = await db.query<any[]>(
-      `SELECT v.voter_id, v.v_name, v.v_email, r.r_name 
-       FROM Voter v JOIN region r ON v.region_id = r.region_id 
+      `SELECT v.voter_id, v.v_name, v.v_email, r.r_name
+       FROM voter v JOIN region r ON v.region_id = r.region_id
        WHERE v.voter_id = ? LIMIT 1`,
       [id]
     );

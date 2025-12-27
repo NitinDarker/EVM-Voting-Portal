@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const [rows] = await db.query(
-      "SELECT voter_id, v_password, region_id, v_name FROM Voter WHERE v_email = ?",
+      "SELECT voter_id, v_password, region_id, v_name FROM voter WHERE v_email = ?",
       [email]
     );
 
